@@ -1,32 +1,24 @@
-"use client";
-
-import axios from "axios";
-import useSWRImmutable from "swr";
-
-const fetcher = (url: string) => axios.get(url).then((res) => res.data);
+import z from "zod";
 
 interface GenerationDescription {
   name: string;
   url: string;
 }
 
-interface GenerationsData {
+interface Generations {
   results: Array<GenerationDescription>;
 }
 
-interface Generations {
-  generations: GenerationsData;
-  isLoading: boolean;
-  error: string;
-}
+const GenerationDescriptionSchema: z.ZodType<GenerationDescription> = z.object({ name: z.string(), url: z.string() });
 
-const useGenerations = (): Generations => {
-  const { data, error, isLoading } = useSWRImmutable("https://pokeapi.co/api/v2/generation/", fetcher);
-  return {
-    generations: data,
-    isLoading,
-    error,
-  };
+const GenerationsSchema: z.ZodType<Generations> = z.object({
+  results: z.array(GenerationDescriptionSchema),
+});
+
+const useGenerations = async (): Promise<Array<GenerationDescription>> => {
+  const raw_data = await fetch("https://pokeapi.co/api/v2/generation/", { next: { revalidate: 3600 } });
+  const data = await raw_data.json();
+  return GenerationsSchema.parse(data).results;
 };
 
 export default useGenerations;
